@@ -1,0 +1,18 @@
+{
+	"name": "FirstExternalTable",
+	"properties": {
+		"description": "FirstExternalTable",
+		"content": {
+			"query": "-- Lab - Using External tables\n\n-- First we need to create a database in the serverless pool\nCREATE DATABASE [appdb]\nuse [appdb]\n-- Here we are creating a database master key. This key will be used to protect the Shared Access Signature which is specified in the next step\n-- Ensure to switch the context to the new database first\n\nCREATE MASTER KEY ENCRYPTION BY PASSWORD = 'P@ssw0rd@123';\n\n-- Here we are using the Shared Access Signature to authorize the use of the Azure Data Lake Storage account\n\nCREATE DATABASE SCOPED CREDENTIAL SasToken\nWITH IDENTITY='SHARED ACCESS SIGNATURE'\n, SECRET = '?sv=2020-08-04&ss=b&srt=sco&sp=rdlx&se=2021-09-29T21:35:19Z&st=2021-09-29T13:35:19Z&spr=https&sig=PaZzx3XxA5EpPMNusOXjzPJ3OA%2FiR3YWnVmTunzqpJU%3D';\n\n-- This defines the source of the data. \n\nCREATE EXTERNAL DATA SOURCE log_data\nWITH (    LOCATION   = 'https://synapsedatalake003.blob.core.windows.net/data',\n          CREDENTIAL = SasToken\n)\n\n/* This creates an External File Format object that defines the external data that can be \npresent in Hadoop, Azure Blob storage or Azure Data Lake Store\n\nHere with FIRST_ROW, we are saying please skip the first row because this contains header information\n*/\n\nCREATE EXTERNAL FILE FORMAT TextFileFormat WITH (  \n      FORMAT_TYPE = DELIMITEDTEXT,  \n    FORMAT_OPTIONS (  \n        FIELD_TERMINATOR = ',',\n        FIRST_ROW = 2))\n\n-- Here we define the external table\n\nCREATE EXTERNAL TABLE [logdata]\n(\n    [Id] [int] ,\n\t[Correlationid] [varchar](200) ,\n\t[Operationname] [varchar](200) ,\n\t[Status] [varchar](100) ,\n\t[Eventcategory] [varchar](100) ,\n\t[Level] [varchar](100) ,\n\t[Time] [datetime] ,\n\t[Subscription] [varchar](200) ,\n\t[Eventinitiatedby] [varchar](1000) ,\n\t[Resourcetype] [varchar](1000) ,\n\t[Resourcegroup] [varchar](1000) )\nWITH (\n LOCATION = '/raw/Log.csv',\n    DATA_SOURCE = log_data,  \n    FILE_FORMAT = TextFileFormat\n)\n\n-- If you made a mistake with the table, you can drop the table and recreate it again\nDROP EXTERNAL TABLE [logdata]\n\n/*\nCommon errors\n\n1. External table 'logdata' is not accessible because location does not exist or it is used by another process. \nHere your Shared Access Siganture is an issue. Ensure to create the right Shared Access Siganture\n\n2. Msg 16544, Level 16, State 3, Line 34\nThe maximum reject threshold is reached.\nThis happens when you try to select the rows of data from the table. This can happen if the rows are not matching the schema defined for the table\n\n\n*/\n\nSELECT * FROM [logdata]\n\n\nSELECT [Operationname] , COUNT([Operationname]) as [Operation Count]\nFROM [logdata]\nGROUP BY [Operationname]\nORDER BY [Operation Count]",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "synapsesqlpool003",
+				"poolName": "synapsesqlpool003"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
